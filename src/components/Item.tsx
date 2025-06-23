@@ -1,4 +1,4 @@
-// import { useState } from 'react';
+import type { Ref } from 'react';
 
 interface Props {
   color: string;
@@ -6,16 +6,15 @@ interface Props {
   id: number;
   expanded?: boolean;
   onClick?(): void;
+  ref?: Ref<HTMLDivElement>;
 }
 
-const Item = ({ color, height, id, expanded, onClick }: Props) => {
-  // const [isExpanded, setExpanded] = useState(false);
-
+const Item = ({ color, height, id, expanded, onClick, ref }: Props) => {
   return (
     <div
+      ref={ref}
       className="item"
       style={{ backgroundColor: color, height: height * (expanded ? 2 : 1) }}
-      // onClick={() => setExpanded((prev) => !prev)}
       onClick={onClick}
     >
       <span className="label">#{id + 1}</span>
