@@ -1,0 +1,10 @@
+.item {
+  font-size: 22px;
+  display: grid;
+  place-content: center;
+
+  .label {
+    color: white;
+    mix-blend-mode: difference;
+  }
+}
