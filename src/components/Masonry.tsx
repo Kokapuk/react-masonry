@@ -1,25 +1,30 @@
-import { memo, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useLayoutEffect, useRef, useState, type Key, type ReactElement } from 'react';
 import { renderToString } from 'react-dom/server';
 
 interface Props {
-  children: ReactNode[];
+  children: ReactElement[];
   columns: number;
   rowGap: number;
   columnGap: number;
+  cacheItemSizes?: boolean;
+  itemSizesCacheKey?: Key;
 }
 
-const Masonry = ({ children, columns, rowGap, columnGap }: Props) => {
+const Masonry = ({ children, columns, rowGap, columnGap, cacheItemSizes, itemSizesCacheKey }: Props) => {
   const wrapper = useRef<HTMLDivElement>(null);
   const [columnSortedChildren, setColumnSortedChildren] = useState<number[][]>(() =>
     Array.from({ length: columns }).map(() => [])
   );
+  const cachedItemSizes = useRef<Map<Key, number>>(new Map());
+
+  useLayoutEffect(() => {
+    cachedItemSizes.current.clear();
+  }, [itemSizesCacheKey, cacheItemSizes]);
 
   useLayoutEffect(() => {
     if (!wrapper.current) {
       return;
     }
-
-    console.time('Rendered');
 
     const referenceColumn = wrapper.current.children[0];
 
@@ -57,14 +62,25 @@ const Masonry = ({ children, columns, rowGap, columnGap }: Props) => {
     for (let i = 0; i < items.length; i++) {
       const shortestColumnIndex = getShortestColumnIndex();
       columnSortedChildren[shortestColumnIndex].push(i);
-      columnHeights[shortestColumnIndex] += items[i].getBoundingClientRect().height + rowGap;
+
+      const childKey = children[i].key;
+
+      if (!childKey) {
+        throw Error('Key is required in masonry children');
+      }
+
+      const itemHeight = cachedItemSizes.current.get(childKey) ?? items[i].getBoundingClientRect().height;
+
+      if (cacheItemSizes && !cachedItemSizes.current.has(childKey)) {
+        cachedItemSizes.current.set(childKey, itemHeight);
+      }
+
+      columnHeights[shortestColumnIndex] += itemHeight + rowGap;
     }
 
     calculationColumn.remove();
     setColumnSortedChildren(columnSortedChildren);
-
-    console.timeEnd('Rendered');
-  }, [children, columns, rowGap]);
+  }, [cacheItemSizes, children, columns, rowGap]);
 
   return (
     <div ref={wrapper} style={{ display: 'flex', gap: columnGap }}>

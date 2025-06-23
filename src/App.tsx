@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
+import './App.css';
 import Item from './components/Item';
 import Masonry from './components/Masonry';
 import { getRandomColor } from './utils';
-import './App.css';
 
 interface Item {
   id: number;
@@ -43,9 +43,14 @@ const App = () => {
   return (
     <div style={{ width: 750, marginInline: 'auto', paddingBlock: 50 }}>
       <h1 style={{ width: 'fit-content', margin: '0 auto 25px auto' }}>Press Alt to append items</h1>
-      <Masonry columns={3} rowGap={30} columnGap={30}>
+      <Masonry columns={3} rowGap={30} columnGap={30} cacheItemSizes>
         {items.map((i) => (
-          <Item key={i.id} {...i} expanded={expandedItemIndex === i.id} onClick={() => setExpandedItemIndex((prev) => (prev === i.id ? null : i.id))} />
+          <Item
+            key={i.id}
+            {...i}
+            expanded={expandedItemIndex === i.id}
+            onClick={() => setExpandedItemIndex((prev) => (prev === i.id ? null : i.id))}
+          />
         ))}
       </Masonry>
     </div>
