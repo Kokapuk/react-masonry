@@ -17,7 +17,7 @@ const Item = ({ color, height, id, expanded, onClick, ref }: Props) => {
       style={{ backgroundColor: color, height: height * (expanded ? 2 : 1) }}
       onClick={onClick}
     >
-      <span className="label">#{id + 1}</span>
+      <span className="label">#{id}</span>
     </div>
   );
 };
