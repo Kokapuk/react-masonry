@@ -17,8 +17,9 @@ interface Props {
   columnGap: number;
   cacheItemSizes?: boolean;
   itemSizesCacheDeps?: DependencyList;
-  virtualized?: HTMLElement | null;
-  virtualizedThreshold?: number;
+  virtualizedViewportTarget?: HTMLElement | null;
+  virtualizedViewportThreshold?: number;
+  virtualizedUpdateThrottle?: number;
 }
 
 interface ColumnItemData {
@@ -35,8 +36,9 @@ const Masonry = ({
   columnGap,
   cacheItemSizes,
   itemSizesCacheDeps,
-  virtualized,
-  virtualizedThreshold = 0,
+  virtualizedViewportTarget,
+  virtualizedViewportThreshold = 500,
+  virtualizedUpdateThrottle = 100,
 }: Props) => {
   const wrapper = useRef<HTMLDivElement>(null);
   const [columnSortedChildren, setColumnSortedChildren] = useState<ColumnItemData[][]>(() =>
@@ -44,43 +46,32 @@ const Masonry = ({
   );
   const columnSortedChildrenRef = useRef(columnSortedChildren);
   const cachedItemSizes = useRef<Map<Key, number>>(new Map());
-  const [columnWidth, setColumnWidth] = useState(0);
   const [columnTopFillers, setColumnTopFillers] = useState(() => Array.from({ length: columns }).map(() => 0));
   const [columnBottomFillers, setColumnBottomFillers] = useState(() => Array.from({ length: columns }).map(() => 0));
+  const calculationColumnRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     cachedItemSizes.current.clear();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cacheItemSizes, ...(itemSizesCacheDeps ?? [])]);
 
-  useEffect(() => {
-    setTimeout(() => {
-      if (!wrapper.current) {
-        return;
-      }
-
-      const referenceColumn = wrapper.current.children[0];
-      setColumnWidth(referenceColumn.getBoundingClientRect().width);
-    });
-  }, [columns, columnGap]);
-
   const recalculateVirtualization = useCallback(
     (columnSortedChildren: ColumnItemData[][]) => {
-      if (!virtualized) {
+      if (!virtualizedViewportTarget) {
         setColumnTopFillers((prev) => prev.map(() => 0));
         setColumnBottomFillers((prev) => prev.map(() => 0));
         return columnSortedChildren.map((column) => column.map((item) => ({ ...item, visible: true })));
       }
 
-      const virtualizedHeight = virtualized.getBoundingClientRect().height;
+      const virtualizedHeight = virtualizedViewportTarget.getBoundingClientRect().height;
 
       return columnSortedChildren.map((column, columnIndex) => {
         const newColumn = column.map((item) => {
           let visible = false;
 
           if (
-            item.top + item.height - virtualized.scrollTop > -virtualizedThreshold &&
-            virtualizedHeight - (item.top - virtualized.scrollTop) > -virtualizedThreshold
+            item.top + item.height - virtualizedViewportTarget.scrollTop > -virtualizedViewportThreshold &&
+            virtualizedHeight - (item.top - virtualizedViewportTarget.scrollTop) > -virtualizedViewportThreshold
           ) {
             visible = true;
           }
@@ -127,7 +118,7 @@ const Masonry = ({
         return newColumn;
       });
     },
-    [rowGap, virtualized, virtualizedThreshold]
+    [rowGap, virtualizedViewportTarget, virtualizedViewportThreshold]
   );
 
   useEffect(() => {
@@ -135,30 +126,30 @@ const Masonry = ({
   }, [columnSortedChildren]);
 
   useEffect(() => {
-    if (!virtualized) {
+    if (!virtualizedViewportTarget) {
       return;
     }
 
     const handleScroll = throttle(
       () => setColumnSortedChildren(recalculateVirtualization(columnSortedChildrenRef.current)),
-      50
+      virtualizedUpdateThrottle
     );
 
-    virtualized.addEventListener('scroll', handleScroll);
+    virtualizedViewportTarget.addEventListener('scroll', handleScroll);
 
     return () => {
-      virtualized.addEventListener('scroll', handleScroll);
+      virtualizedViewportTarget.addEventListener('scroll', handleScroll);
     };
-  }, [recalculateVirtualization, virtualized]);
+  }, [recalculateVirtualization, virtualizedViewportTarget, virtualizedUpdateThrottle]);
 
   const recalculate = useCallback(
-    (node: HTMLDivElement | null) => {
+    (node: HTMLElement | null) => {
       if (!node || !wrapper.current) {
         return;
       }
 
       const columnHeights = Array(columns).fill(0);
-      const items = Array.from(node.children);
+      const items = Array.from(node.children).slice(0, node.children.length - 1);
       const columnSortedChildren: ColumnItemData[][] = Array.from({ length: columns }).map(() => []);
 
       const getShortestColumnIndex = () => {
@@ -177,7 +168,7 @@ const Masonry = ({
         return shortestColumnIndex;
       };
 
-      const wrapperTop = wrapper.current.getBoundingClientRect().top + (virtualized?.scrollTop ?? 0);
+      const wrapperTop = wrapper.current.getBoundingClientRect().top + (virtualizedViewportTarget?.scrollTop ?? 0);
 
       for (let i = 0; i < items.length; i++) {
         const shortestColumnIndex = getShortestColumnIndex();
@@ -207,38 +198,59 @@ const Masonry = ({
 
       setColumnSortedChildren(recalculateVirtualization(columnSortedChildren));
     },
-    [cacheItemSizes, children, columns, recalculateVirtualization, rowGap, virtualized]
+    [cacheItemSizes, children, columns, recalculateVirtualization, rowGap, virtualizedViewportTarget]
   );
+
+  useEffect(() => {
+    if (!calculationColumnRef.current) {
+      return;
+    }
+
+    const observer = new ResizeObserver(() => {
+      recalculate(calculationColumnRef.current);
+    });
+
+    observer.observe(calculationColumnRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [recalculate]);
 
   return (
     <>
       <div ref={wrapper} style={{ display: 'flex', gap: columnGap, position: 'relative', overflow: 'hidden' }}>
         {columnSortedChildren.map((column, columnIndex) => (
-          <div key={columnIndex} style={{ display: 'flex', flexDirection: 'column', gap: rowGap, width: '100%' }}>
+          <div
+            key={columnIndex}
+            style={{ display: 'flex', flexDirection: 'column', gap: rowGap, width: '100%', position: 'relative' }}
+          >
             <>
               {!!columnTopFillers[columnIndex] && <div style={{ height: columnTopFillers[columnIndex] }} />}
               {column.filter((i) => i.visible).map((i) => children[i.itemIndex])}
               {!!columnBottomFillers[columnIndex] && <div style={{ height: columnBottomFillers[columnIndex] }} />}
+
+              {columnIndex === 0 && (
+                <div
+                  ref={calculationColumnRef}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: rowGap,
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    visibility: 'hidden',
+                  }}
+                  inert
+                >
+                  {children}
+                </div>
+              )}
             </>
           </div>
         ))}
-
-        {!!columnWidth && (
-          <div
-            ref={recalculate}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: rowGap,
-              width: columnWidth,
-              position: 'absolute',
-              visibility: 'hidden',
-            }}
-            inert
-          >
-            {children}
-          </div>
-        )}
       </div>
     </>
   );

@@ -50,7 +50,7 @@ const App = () => {
   return (
     <div
       ref={setScrollArea}
-      style={{ width: 750, marginInline: 'auto', paddingBlock: 50, height: '100vh', overflow: 'auto' }}
+      style={{ width: 750, marginInline: 'auto', paddingBlock: 50, maxHeight: '100vh', overflow: 'auto' }}
     >
       <h1 style={{ width: 'fit-content', margin: '0 auto 25px auto' }}>Press Alt to append items</h1>
       <input
@@ -59,7 +59,7 @@ const App = () => {
         onChange={(e) => setColumns(e.currentTarget.valueAsNumber)}
         style={{ position: 'sticky', top: 0, zIndex: 500 }}
       />
-      <Masonry columns={columns} rowGap={30} columnGap={30} cacheItemSizes virtualized={scrollArea} virtualizedThreshold={500}>
+      <Masonry columns={columns} rowGap={30} columnGap={30} cacheItemSizes virtualizedViewportTarget={scrollArea}>
         {items.map((i) => (
           <Item key={i.id} {...i} expanded={expandedItemIndex === i.id} onClick={() => handleItemClick(i)} />
         ))}
