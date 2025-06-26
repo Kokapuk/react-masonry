@@ -10,7 +10,7 @@ interface Item {
   height: number;
 }
 
-const PER_PAGE = 50;
+const PER_PAGE = 5000;
 
 const App = () => {
   const [items, setItems] = useState<Item[]>(() =>
@@ -42,10 +42,10 @@ const App = () => {
     return () => window.removeEventListener('keydown', handleKeydown);
   }, []);
 
-  const handleItemClick = useCallback(
-    (item: Item) => setExpandedItemIndex((prev) => (prev === item.id ? null : item.id)),
-    []
-  );
+  const handleItemClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    const id = +(event.currentTarget.dataset.id as string);
+    setExpandedItemIndex((prev) => (prev === id ? null : id));
+  }, []);
 
   return (
     <div
@@ -59,9 +59,9 @@ const App = () => {
         onChange={(e) => setColumns(e.currentTarget.valueAsNumber)}
         style={{ position: 'sticky', top: 0, zIndex: 500 }}
       />
-      <Masonry columns={columns} rowGap={30} columnGap={30} cacheItemSizes virtualizedViewportTarget={scrollArea}>
+      <Masonry columns={columns} rowGap={30} columnGap={30} virtualizedViewportTarget={scrollArea}>
         {items.map((i) => (
-          <Item key={i.id} {...i} expanded={expandedItemIndex === i.id} onClick={() => handleItemClick(i)} />
+          <Item key={i.id} {...i} expanded={expandedItemIndex === i.id} onClick={handleItemClick} />
         ))}
       </Masonry>
     </div>

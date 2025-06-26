@@ -149,7 +149,7 @@ const Masonry = ({
       }
 
       const columnHeights = Array(columns).fill(0);
-      const items = Array.from(node.children).slice(0, node.children.length - 1);
+      const items = Array.from(node.children);
       const columnSortedChildren: ColumnItemData[][] = Array.from({ length: columns }).map(() => []);
 
       const getShortestColumnIndex = () => {
@@ -168,7 +168,11 @@ const Masonry = ({
         return shortestColumnIndex;
       };
 
-      const wrapperTop = wrapper.current.getBoundingClientRect().top + (virtualizedViewportTarget?.scrollTop ?? 0);
+      const wrapperTop =
+        wrapper.current.getBoundingClientRect().top -
+        (virtualizedViewportTarget?.getBoundingClientRect().top ?? 0) +
+        (virtualizedViewportTarget?.scrollTop ?? 0);
+      console.log(wrapperTop);
 
       for (let i = 0; i < items.length; i++) {
         const shortestColumnIndex = getShortestColumnIndex();
